@@ -1,4 +1,4 @@
-# FaceReconIa
+# FaceReconIa con RapberryPI5
 
 Descripción breve no se 
 
@@ -23,6 +23,11 @@ El proyecto requiere las siguientes dependencias. Se recomienda instalarlas en u
 - pyparsing==3.1.1
 - python-dateutil==2.8.2
 - six==1.16.0
+
+## Evidencia de uso
+![20240123_19h18m09s_grim](https://github.com/victoMR/proyect-facerecon/assets/77412296/f6b60fe7-7904-4957-946b-d142e44ed736)
+
+
 
 ## Instalación
 
