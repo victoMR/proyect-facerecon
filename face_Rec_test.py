@@ -3,51 +3,67 @@ import cv2
 import numpy as np
 import time
 
-# Open the camera; adjust the number according to your configuration
-cap = cv2.VideoCapture(0)
+class Node:
+    def __init__(self, name):
+        self.name = name
+        self.images = []
+        self.left = None
+        self.right = None
 
-# Check if the camera is opened correctly
-if not cap.isOpened():
-    print("Error")
-    exit()
+def create_image_tree():
+    # Create nodes for each person
+    abril_node = Node("2022143009_Abril")
+    vic_node = Node("2022143069_Vic")
+    mau_node = Node("2022143063_Mau")
+    palo_node = Node("2022143015_Palo")
 
-# File to store performance data
-performance_file = open('performance_data_Recon.txt', 'w')
+    # Organize images into sub-trees
+    abril_node.images = load_images("2022143009_Abril", 1, 5)
+    vic_node.images = load_images("2022143069_Vic", 6, 10)
+    mau_node.images = load_images("2022143063_Mau", 11, 15)
+    palo_node.images = load_images("2022143015_Palo", 16, 20)
 
-images = []  # List to store the images
-print(images)
-names = ["2022143009", "2022143069"]
+    # Build the image tree
+    root = Node("root")
+    root.left = abril_node
+    root.right = Node("Unknown")  # Node for images not assigned to any person
 
-for i in range(20):
-    img_path = f"/home/pi/Documents/face_recon/img/img{i+1}.jpeg"
-    print(img_path)  # Add this line to check the image path
-    img = face_recognition.load_image_file(img_path)
+    abril_node.left = vic_node
+    abril_node.right = Node("Unknown")
 
-    # Assign names based on the range of images
-    if i < 6:
-        name = "2022143009_Abril" 
-    elif i < 11:
-        name = "2022143069_Vic"
-    elif i < 16:
-        name = "2022143063_Mau"
-    else:
-        name = "2022143015_Palo"
+    vic_node.left = mau_node
+    vic_node.right = Node("Unknown")
 
-    # Try to get face encodings; print a message if no face is found
-    try:
-        encoding = face_recognition.face_encodings(img)[0]
-    except IndexError:
-        print(f"No face detected in image {img_path}")
-        continue
+    mau_node.left = palo_node
+    mau_node.right = Node("Unknown")
 
-    images.append((img, name))
+    return root
 
-# List to store the encodings and names of the images
-encodings_and_names = [(face_recognition.face_encodings(img)[0], name) for img, name in images]
+def load_images(name, start, end):
+    images = []
+    for i in range(start, end + 1):
+        img_path = f"/home/pi/Documents/face_recon/img/img{i}.jpeg"
+        img = face_recognition.load_image_file(img_path)
+        images.append((img, name))
+    return images
 
-print("Imagenes cargadas")
+# Create the image tree
+image_tree = create_image_tree()
+
+# List all images for comparison
+all_images = [image for node in [image_tree] for image in node.images]
+
+# List the encodings and names of the images
+encodings_and_names = [(face_recognition.face_encodings(img)[0], name) for img, name in all_images]
+
+print("Images loaded")
 
 frame_count = 0  # Counter to control face recognition frequency
+
+cap = cv2.VideoCapture(0)  # Open the default camera
+
+# Create a file to store performance data
+performance_file = open("performance.txt", "w")
 
 while True:
     # Capture frame by frame
@@ -65,7 +81,7 @@ while True:
     small_frame = cv2.resize(rgb_frame, (0, 0), fx=0.25, fy=0.25)
 
     # Calculate and store the current time in milliseconds
-    timestamp = int(time.time() * 100)
+    timestamp = int(time.time() * 1000)
 
     # Write the timestamp to the file
     performance_file.write(f"{timestamp},{time.process_time()}\n")
@@ -77,7 +93,7 @@ while True:
     # List to store the names of the people detected in the current frame
     face_names = []
 
-    # Perform face recognition every frame
+    # Perform face recognition for each face in the current frame
     for face_encoding in face_encodings:
         # Compare the encoding of the current face with the encodings of the images
         matches = face_recognition.compare_faces([enc for enc, _ in encodings_and_names], face_encoding)
@@ -93,7 +109,7 @@ while True:
 
         # Add the name to the list
         face_names.append(encodings_and_names[index][1])
-        
+
     print("Nombres detectados:", face_names)
 
     # For each detected face in the current frame
