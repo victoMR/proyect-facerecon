@@ -17,7 +17,7 @@ if not cap.isOpened():
 
 # Lista para almacenar las imágenes y nombres para el reconocimiento facial
 images = []
-names = ["2022143009_Abril", "2022143069_Vic", "2022143063_Mau", "2022143015_Palo"]
+names = ["Desconocido","2022143009_Abril", "2022143069_Vic", "2022143063_Mau", "2022143015_Palo"]
 
 # Utiliza tqdm para mostrar una barra de progreso en la consola
 for i in tqdm(range(20), desc="Cargando datos"):
@@ -26,13 +26,13 @@ for i in tqdm(range(20), desc="Cargando datos"):
 
     # Asignar nombres basados en el rango de imágenes
     if i < 6:
-        name = names[0]
-    elif i < 11:
         name = names[1]
-    elif i < 16:
+    elif i < 11:
         name = names[2]
-    else:
+    elif i < 16:
         name = names[3]
+    else:
+        name = names[4]
 
     # Intentar obtener codificaciones faciales; imprimir un mensaje si no se encuentra ninguna cara
     try:
@@ -48,7 +48,7 @@ encodings_and_names = [(face_recognition.face_encodings(img)[0], name) for img, 
 tqdm.write("Imagenes cargadas")
 
 frame_count = 1  # Contador para controlar la frecuencia de reconocimiento facial
-recognition_frequency = 5  # Ajusta este valor según tus necesidades
+recognition_frequency = 6  # Ajusta este valor según tus necesidades
 
 # Variable para almacenar los nombres de las caras detectadas
 current_face_names = []
@@ -69,7 +69,7 @@ while True:
     rgb_frame = frame[:, :, ::-1]
 
     # Cambiar el tamaño del fotograma a un tamaño más pequeño
-    small_frame = cv2.resize(rgb_frame, (0, 0), fx=0.22, fy=0.22)
+    small_frame = cv2.resize(rgb_frame, (0, 0), fx=0.23, fy=0.23)
 
     # Realizar el reconocimiento facial cada 'recognition_frequency' fotogramas
     if frame_count % recognition_frequency == 0:
@@ -114,7 +114,7 @@ while True:
         cv2.rectangle(frame, (left * 4, top * 4), (right * 4, bottom * 4), (0, 0, 255), 2)
 
         # Dibujar una etiqueta con el nombre de la persona
-        cv2.rectangle(frame, (left * 4, (bottom * 4) - 35), (right * 4, bottom * 4), (0, 0, 255), cv2.FILLED)
+        cv2.rectangle(frame, (left * 4, (bottom * 4) - 35), (right * 4, bottom * 4), (0, 100, 255), cv2.FILLED)
         cv2.putText(frame, name, (left * 4 + 6, (bottom * 4) - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 1)
 
     # Mostrar el fotograma
