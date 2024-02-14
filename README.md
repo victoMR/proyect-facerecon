@@ -23,11 +23,14 @@ El proyecto requiere las siguientes dependencias. Se recomienda instalarlas en u
 - pyparsing==3.1.1
 - python-dateutil==2.8.2
 - six==1.16.0
+- tqdm==4.66.2
 
 ## Evidencia de uso
 ![20240123_19h18m09s_grim](https://github.com/victoMR/proyect-facerecon/assets/77412296/f6b60fe7-7904-4957-946b-d142e44ed736)
 
 
+## Actualizaccion 
+![20240213_18h42m26s_grim](https://github.com/victoMR/proyect-facerecon/assets/77412296/ba3cc042-f153-4a3a-9b0a-ceef630c537e)
 
 ## Instalación
 
@@ -42,3 +45,5 @@ venv\Scripts\activate
 
 # Activar el entorno virtual (en sistemas basados en Unix o MacOS)
 source venv/bin/activate
+```
+
