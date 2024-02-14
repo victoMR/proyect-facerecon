@@ -1,78 +1,71 @@
-# import cv2
-# import time
-
-# # Abrir la cámara; ajusta el número según tu configuración
-# cap = cv2.VideoCapture(0)
-
-# # Checar si la cámara se abrió correctamente
-# if not cap.isOpened():
-#     print("Error")
-#     exit()
-
-# # Archivo para almacenar datos de rendimiento
-# performance_file = open('performance_data.txt', 'w')
-
-# while True:
-#     # Capturar frame por frame
-#     ret, frame = cap.read()
-
-#     # Si el frame no se captura correctamente
-#     if not ret:
-#         print("Error al capturar el frame")
-#         break
-
-#     # Mostrar el frame capturado
-#     cv2.imshow('Camera', frame)
-
-#     # Calcular y almacenar el tiempo actual en milisegundos
-#     timestamp = int(time.time() * 1000)
-    
-#     # Escribir el timestamp en el archivo
-#     performance_file.write(f"{timestamp},{time.process_time()}\n")
-
-#     # Presionar 'q' para salir del programa
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         break
-
-#     # Esperar 10ms para que se pueda ver el frame capturado en la ventana 
-#     time.sleep(0.01)
-
-# # Liberar la cámara y cerrar todas las ventanas
-# cap.release()
-# cv2.destroyAllWindows()
-
-# # Cerrar el archivo de rendimiento
-# performance_file.close()
-
-# programa que abra las imagenes de img1 y img2 y las muestre en pantalla
 import cv2
+import dlib
 
-def display_images(image_paths):
-    for path in image_paths:
-        # Lee la imagen desde la ruta especificada
-        img = cv2.imread(path)
+# Inicializar el detector de rostros de dlib
+detector_rostros = dlib.get_frontal_face_detector()
 
-        # Verifica si la imagen se ha leído correctamente
-        if img is None:
-            print(f"No se pudo leer la imagen en {path}")
-            continue
+# Descargar el modelo preentrenado de puntos faciales
+predictor_facial = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
-        # Muestra la imagen en una ventana
-        cv2.imshow('Imagen', img)
+# Inicializar la cámara
+cap = cv2.VideoCapture(0)
+cap.set(3, 640)  # Ancho
+cap.set(4, 480)  # Altura
 
-        # Espera a que se presione una tecla (0 significa esperar indefinidamente)
-        cv2.waitKey(0)
+# Capturar una imagen cada 0.1 segundos
+captura_cada_segundo = 0.1
+ultimo_tiempo = 0
 
-        # Cierra la ventana después de presionar una tecla
-        cv2.destroyAllWindows()
+while True:
+    tiempo_actual = cv2.getTickCount()
 
-if __name__ == "__main__":
-    # Lista de rutas de las imágenes que deseas abrir
-    image_paths = [
-        "/home/pi/Documents/face_recon/img/img1.jpeg",
-         "/home/pi/Documents/face_recon/img/img2.jpeg",
-        # Agrega más rutas según sea necesario
-    ]
+    # Capturar un frame de la cámara cada segundo
+    if (tiempo_actual - ultimo_tiempo) / cv2.getTickFrequency() > captura_cada_segundo:
+        ret, frame = cap.read()
 
-    # Llama a la función para mostrar las imágenes
-    display_images(image_paths)
+        # Convertir la imagen a escala de grises
+        gris = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # Detectar rostros en la imagen
+        rostros = detector_rostros(gris)
+
+        # Dibujar puntos y líneas más finas
+        for rostro in rostros:
+            puntos_faciales = predictor_facial(gris, rostro)
+
+            # Dibujar puntos faciales más finos
+            for punto in puntos_faciales.parts():
+                cv2.circle(frame, (punto.x, punto.y), 1, (0, 255, 0), -1)
+
+            # Dibujar líneas más finas entre puntos faciales
+            for i in range(1, 17):  # Líneas para la ceja izquierda
+                cv2.line(frame, (puntos_faciales.part(i - 1).x, puntos_faciales.part(i - 1).y),
+                         (puntos_faciales.part(i).x, puntos_faciales.part(i).y), (0, 255, 0), 1)
+            for i in range(18, 26):  # Líneas para la ceja derecha
+                cv2.line(frame, (puntos_faciales.part(i - 1).x, puntos_faciales.part(i - 1).y),
+                         (puntos_faciales.part(i).x, puntos_faciales.part(i).y), (0, 255, 0), 1)
+            for i in range(27, 35):  # Líneas para la nariz
+                cv2.line(frame, (puntos_faciales.part(i - 1).x, puntos_faciales.part(i - 1).y),
+                         (puntos_faciales.part(i).x, puntos_faciales.part(i).y), (0, 255, 0), 1)
+            for i in range(36, 47):  # Líneas para el ojo izquierdo
+                cv2.line(frame, (puntos_faciales.part(i - 1).x, puntos_faciales.part(i - 1).y),
+                         (puntos_faciales.part(i).x, puntos_faciales.part(i).y), (0, 255, 0), 1)
+            for i in range(48, 59):  # Líneas para el ojo derecho
+                cv2.line(frame, (puntos_faciales.part(i - 1).x, puntos_faciales.part(i - 1).y),
+                         (puntos_faciales.part(i).x, puntos_faciales.part(i).y), (0, 255, 0), 1)
+            for i in range(60, 67):  # Líneas para la boca
+                cv2.line(frame, (puntos_faciales.part(i - 1).x, puntos_faciales.part(i - 1).y),
+                         (puntos_faciales.part(i).x, puntos_faciales.part(i).y), (0, 255, 0), 1)
+
+        # Mostrar la imagen en una ventana
+        cv2.imshow('Escaneo Facial', frame)
+
+        ultimo_tiempo = tiempo_actual
+
+    # Salir del bucle si se presiona la tecla 'q'
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Liberar la cámara y cerrar la ventana
+cap.release()
+cv2.destroyAllWindows()
