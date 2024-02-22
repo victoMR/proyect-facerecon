@@ -22,18 +22,20 @@ names = ["Desconocido", "2022143009_Abril", "2022143069_Vic", "2022143063_Mau", 
 
 # Utiliza tqdm para mostrar una barra de progreso en la consola
 for i in tqdm(range(20), desc="Cargando datos"):
-    img_path = f"/home/pi/Documents/face_recon/img/img{i+1}.jpeg"
+    img_path = f"/home/pi/Documents/face_recon/img/img{i+1}.JPG"
     img = face_recognition.load_image_file(img_path)
 
     # Asignar nombres basados en el rango de imágenes
-    if i < 6:
-        name = names[1]
-    elif i < 11:
+    if i < 11:
         name = names[2]
-    elif i < 16:
+    elif i < 21:
         name = names[3]
-    else:
+    elif i < 31:
         name = names[4]
+    elif i < 41:
+        name = names[5]
+    else:
+        name = names[1]
 
     # Intentar obtener codificaciones faciales; imprimir un mensaje si no se encuentra ninguna cara
     try:
