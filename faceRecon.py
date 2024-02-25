@@ -9,7 +9,7 @@ from pyomo.environ import *
 predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
 # Abrir la cámara; ajusta el número según tu configuración
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(4)
 
 # Verificar si la cámara se abrió correctamente
 if not cap.isOpened():
@@ -27,15 +27,15 @@ for i in tqdm(range(20), desc="Cargando datos"):
 
     # Asignar nombres basados en el rango de imágenes
     if i < 11:
-        name = names[2]
-    elif i < 21:
-        name = names[3]
-    elif i < 31:
-        name = names[4]
-    elif i < 41:
-        name = names[5]
-    else:
         name = names[1]
+    elif i < 21:
+        name = names[2]
+    elif i < 31:
+        name = names[3]
+    elif i < 41:
+        name = names[4]
+    else:
+        name = names[0]
 
     # Intentar obtener codificaciones faciales; imprimir un mensaje si no se encuentra ninguna cara
     try:
