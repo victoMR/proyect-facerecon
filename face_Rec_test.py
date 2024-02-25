@@ -19,19 +19,21 @@ images = []
 names = ["Desconocido","2022143009_Abril", "2022143069_Vic", "2022143063_Mau", "2022143015_Palo"]
 
 # Utiliza tqdm para mostrar una barra de progreso en la consola
-for i in tqdm(range(20), desc="Cargando datos"):
-    img_path = f"/home/pi/Documents/face_recon/img/img{i+1}.jpeg"
+for i in tqdm(range(40), desc="Cargando datos"):
+    img_path = f"/home/pi/Documents/face_recon/img/img{i+1}.JPG"
     img = face_recognition.load_image_file(img_path)
 
     # Asignar nombres basados en el rango de imágenes
-    if i < 6:
+    if i < 11:
         name = names[1]
-    elif i < 11:
+    elif i < 21:
         name = names[2]
-    elif i < 16:
+    elif i < 31:
         name = names[3]
-    else:
+    elif i < 41:
         name = names[4]
+    else:
+        name = names[0]
 
     # Intentar obtener codificaciones faciales; imprimir un mensaje si no se encuentra ninguna cara
     try:
@@ -39,12 +41,13 @@ for i in tqdm(range(20), desc="Cargando datos"):
     except IndexError:
         print(f"No se detectó ninguna cara en la imagen {img_path}")
         continue
-    
+
     images.append((img, name))
 
 # Lista para almacenar las codificaciones y nombres de las imágenes
 encodings_and_names = [(face_recognition.face_encodings(img)[0], name) for img, name in images]
-tqdm.write("Imagenes cargadas")
+tqdm.write("Imágenes cargadas")
+
 
 frame_count = 1  # Contador para controlar la frecuencia de reconocimiento facial
 recognition_frequency = 6  # Ajusta este valor según tus necesidades
@@ -94,7 +97,7 @@ while True:
                 y = landmarks.part(n).y
                 cv2.circle(frame, (x * 4, y * 4), 1, (0, 255, 0), -1)
 
-            tolerance = 0.6  # Valor de tolerancia inicial, puedes ajustarlo según sea necesario
+            tolerance = 0.4  # Valor de tolerancia inicial es 0.5 , puedes ajustarlo según sea necesario
             # Comparar la codificación de la cara actual con las codificaciones de las imágenes
             matches = face_recognition.compare_faces([enc for enc, _ in encodings_and_names], face_encoding, tolerance=tolerance)
 
