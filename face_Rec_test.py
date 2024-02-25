@@ -1,7 +1,6 @@
 import face_recognition
 import cv2
 import dlib
-import time
 from tqdm import tqdm  # Importa la clase tqdm
 
 # Cargar el modelo de puntos faciales
@@ -95,8 +94,9 @@ while True:
                 y = landmarks.part(n).y
                 cv2.circle(frame, (x * 4, y * 4), 1, (0, 255, 0), -1)
 
+            tolerance = 0.6  # Valor de tolerancia inicial, puedes ajustarlo según sea necesario
             # Comparar la codificación de la cara actual con las codificaciones de las imágenes
-            matches = face_recognition.compare_faces([enc for enc, _ in encodings_and_names], face_encoding, tolerance=0.5)
+            matches = face_recognition.compare_faces([enc for enc, _ in encodings_and_names], face_encoding, tolerance=tolerance)
 
             # Si no hay coincidencias
             if not any(matches):

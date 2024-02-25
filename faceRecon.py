@@ -9,7 +9,7 @@ from pyomo.environ import *
 predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
 # Abrir la cámara; ajusta el número según tu configuración
-cap = cv2.VideoCapture(4)
+cap = cv2.VideoCapture(0)
 
 # Verificar si la cámara se abrió correctamente
 if not cap.isOpened():
@@ -21,7 +21,7 @@ images = []
 names = ["Desconocido", "2022143009_Abril", "2022143069_Vic", "2022143063_Mau", "2022143015_Palo"]
 
 # Utiliza tqdm para mostrar una barra de progreso en la consola
-for i in tqdm(range(20), desc="Cargando datos"):
+for i in tqdm(range(40), desc="Cargando datos"):
     img_path = f"/home/pi/Documents/face_recon/img/img{i+1}.JPG"
     img = face_recognition.load_image_file(img_path)
 
@@ -90,7 +90,8 @@ for i in imagenes:
             modelo.sim_constraint.add(modelo.similitud[i, j] >= modelo.fp[i] + modelo.fp[j] - 1)
 
 # Crear un solucionador
-solucionador = SolverFactory('glpk')
+# Especificar la ruta del ejecutable de GLPK
+solucionador = SolverFactory('glpk', executable='/usr/bin/glpsol')
 
 while True:
     # Capturar fotograma por fotograma
@@ -148,10 +149,6 @@ while True:
             # Resolver el problema de optimización con Pyomo
             solucionador.solve(modelo)
 
-            # Mostrar los resultados de la optimización
-            print("Solución óptima:")
-            for i in imagenes:
-                print(f"Imagen {i}: Falso Positivo = {value(modelo.fp[i])}")
         except Exception as e:
             print(f"Error en la optimización: {e}")
 
