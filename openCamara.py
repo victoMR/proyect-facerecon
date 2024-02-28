@@ -4,7 +4,7 @@ import dlib
 # Inicializar el detector de rostros de dlib
 detector_rostros = dlib.get_frontal_face_detector()
 
-# Descargar el modelo preentrenado de puntos faciales
+# Descargar el modelo preentrenado de qqqpuntos faciales
 predictor_facial = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
 # Inicializar la cámara

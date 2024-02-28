@@ -1,7 +1,9 @@
 import face_recognition
 import cv2
 import dlib
-from tqdm import tqdm  # Importa la clase tqdm
+import serial
+from tqdm import tqdm
+import time
 
 # Cargar el modelo de puntos faciales
 predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
@@ -11,12 +13,12 @@ cap = cv2.VideoCapture(0)
 
 # Verificar si la cámara se abrió correctamente
 if not cap.isOpened():
-    print("Error")
+    print("Error al abrir la cámara")
     exit()
 
 # Lista para almacenar las imágenes y nombres para el reconocimiento facial
 images = []
-names = ["Desconocido","2022143009_Abril", "2022143069_Vic", "2022143063_Mau", "2022143015_Palo"]
+names = ["Desconocido", "2022143009_Abril", "2022143069_Vic", "2022143063_Mau", "2022143015_Palo"]
 
 # Utiliza tqdm para mostrar una barra de progreso en la consola
 for i in tqdm(range(40), desc="Cargando datos"):
@@ -48,7 +50,6 @@ for i in tqdm(range(40), desc="Cargando datos"):
 encodings_and_names = [(face_recognition.face_encodings(img)[0], name) for img, name in images]
 tqdm.write("Imágenes cargadas")
 
-
 frame_count = 1  # Contador para controlar la frecuencia de reconocimiento facial
 recognition_frequency = 6  # Ajusta este valor según tus necesidades
 
@@ -57,6 +58,18 @@ current_face_names = []
 
 # Definir face_locations fuera del bucle
 face_locations = []
+
+# Define un diccionario para almacenar el contador de detecciones por nombre
+detection_counter = {name: 0 for _, name in encodings_and_names}
+
+# Define un umbral para activar el servo (ajusta según sea necesario)
+detection_threshold = 5
+
+# Configuración de la comunicación serial con Arduino
+arduino_serial = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)  # Ajusta el puerto según tu configuración
+
+# Conjunto para almacenar estudiantes que han entrado
+entered_students = set()
 
 while True:
     # Capturar fotograma por fotograma
@@ -97,7 +110,7 @@ while True:
                 y = landmarks.part(n).y
                 cv2.circle(frame, (x * 4, y * 4), 1, (0, 255, 0), -1)
 
-            tolerance = 0.4  # Valor de tolerancia inicial es 0.5 , puedes ajustarlo según sea necesario
+            tolerance = 0.3  # Valor de tolerancia inicial es 0.5 , puedes ajustarlo según sea necesario
             # Comparar la codificación de la cara actual con las codificaciones de las imágenes
             matches = face_recognition.compare_faces([enc for enc, _ in encodings_and_names], face_encoding, tolerance=tolerance)
 
@@ -110,6 +123,27 @@ while True:
             # Obtener el nombre de la persona usando enumerate para obtener el índice directamente
             index = matches.index(True)
             current_face_names.append(encodings_and_names[index][1])
+
+            # Incrementa el contador de detecciones para la persona actual
+            detection_counter[encodings_and_names[index][1]] += 1
+
+            # Activa el servo solo si el contador alcanza el umbral
+            if detection_counter[encodings_and_names[index][1]] >= detection_threshold:
+                # Aquí colocar el código para activar el servo
+                print(f"Persona {encodings_and_names[index][1]} detectada y servo activado!")
+
+                # Enviar comando a Arduino a través de comunicación serial
+                if encodings_and_names[index][1] not in entered_students:
+                    # Si el estudiante no ha entrado, registra entrada
+                    arduino_serial.write(b'E')  # Envía el comando 'E' para entrada a Arduino
+                    entered_students.add(encodings_and_names[index][1])  # Agrega el estudiante a la lista de entradas
+
+                # Si el estudiante ya ha entrado, registra salida
+                else:
+                    arduino_serial.write(b'S')  # Envía el comando 'S' para salida a Arduino
+                    entered_students.remove(encodings_and_names[index][1])  # Elimina el estudiante de la lista de entradas
+
+                detection_counter[encodings_and_names[index][1]] = 0  # Reinicia el contador después de activar el servo
 
     # Mostrar los nombres de las caras detectadas
     for (top, right, bottom, left), name in zip(face_locations, current_face_names):
@@ -126,6 +160,8 @@ while True:
 
     # Presiona 'q' para salir del programa
     if cv2.waitKey(10) & 0xFF == ord('q'):
+        # Enviar comando a Arduino para desactivar el servo antes de salir
+        arduino_serial.write(b'R')  # Envía el comando 'R' para reiniciar el servo en Arduino
         break
 
     # Incrementar el contador de fotogramas
