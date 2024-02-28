@@ -3,13 +3,12 @@ import cv2
 import dlib
 import serial
 from tqdm import tqdm
-import time
 
 # Cargar el modelo de puntos faciales
 predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
 # Abrir la cámara; ajusta el número según tu configuración
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(0)   # 0 para la cámara predeterminada, 1 para la cámara externa
 
 # Verificar si la cámara se abrió correctamente
 if not cap.isOpened():
@@ -63,13 +62,10 @@ face_locations = []
 detection_counter = {name: 0 for _, name in encodings_and_names}
 
 # Define un umbral para activar el servo (ajusta según sea necesario)
-detection_threshold = 5
+detection_threshold = 6
 
 # Configuración de la comunicación serial con Arduino
 arduino_serial = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)  # Ajusta el puerto según tu configuración
-
-# Conjunto para almacenar estudiantes que han entrado
-entered_students = set()
 
 while True:
     # Capturar fotograma por fotograma
@@ -133,15 +129,7 @@ while True:
                 print(f"Persona {encodings_and_names[index][1]} detectada y servo activado!")
 
                 # Enviar comando a Arduino a través de comunicación serial
-                if encodings_and_names[index][1] not in entered_students:
-                    # Si el estudiante no ha entrado, registra entrada
-                    arduino_serial.write(b'E')  # Envía el comando 'E' para entrada a Arduino
-                    entered_students.add(encodings_and_names[index][1])  # Agrega el estudiante a la lista de entradas
-
-                # Si el estudiante ya ha entrado, registra salida
-                else:
-                    arduino_serial.write(b'S')  # Envía el comando 'S' para salida a Arduino
-                    entered_students.remove(encodings_and_names[index][1])  # Elimina el estudiante de la lista de entradas
+                arduino_serial.write(b'M')  # Envía el comando 'M' para activar el servo en Arduino
 
                 detection_counter[encodings_and_names[index][1]] = 0  # Reinicia el contador después de activar el servo
 
