@@ -5,6 +5,7 @@ import serial
 import boto3
 import numpy as np
 from tqdm import tqdm
+import time
 
 # Cargar el modelo de puntos faciales
 predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
@@ -110,7 +111,7 @@ while True:
     for (top, right, bottom, left), name in zip(face_locations, current_face_names):
         cv2.rectangle(frame, (left * 4, top * 4), (right * 4, bottom * 4), (0, 0, 255), 2)
         cv2.rectangle(frame, (left * 4, (bottom * 4) - 35), (right * 4, bottom * 4), (0, 100, 255), cv2.FILLED)
-        cv2.putText(frame, name, (left * 4 + 6, (bottom * 4) - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 1)
+        cv2.putText(frame, name, (left * 4 + 6, (bottom * 4) - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 1)
 
         # Verificar si el nombre no es 'Desconocido' antes de incrementar el contador
         if name != 'Desconocido':
@@ -121,15 +122,19 @@ while True:
                 detection_counter[name] = 1
 
             if detection_counter[name] >= detection_threshold:
+                time.sleep(0.5)
                 print(f"Persona {name} detectada y servo activado!")
+                
 
                 if name not in entered_students:
+                    time.sleep(0.2)
                     arduino_serial.write(b'M')  # Enviar comando para abrir el torniquete
                     entered_students.add(name)
                     ## impriomir el comando que le manda a la arduino
                     print("M")
 
                 else:
+                    time.sleep(0.2)
                     arduino_serial.write(b'R')  # Enviar comando para cerrar el torniquete
                     entered_students.remove(name)
                     print("R")  
