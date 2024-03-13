@@ -1,3 +1,17 @@
 env
 
 .vscode
+
+connect_device_package.zip
+
+.lgd-nfy0
+
+esp8266.cert.pem
+
+esp8266-Policy
+
+esp8266.private.key
+
+esp8266.public.key
+
+aws-iot-device-sdk-python-v2
