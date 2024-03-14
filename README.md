@@ -37,6 +37,15 @@ El proyecto requiere las siguientes dependencias. Se recomienda instalarlas en u
 ## Actualizaccion 
 ![20240213_18h42m26s_grim](https://github.com/victoMR/proyect-facerecon/assets/77412296/ba3cc042-f153-4a3a-9b0a-ceef630c537e)
 
+## Usando 
+https://img.shields.io/badge/Amazon%20DynamoDB-4053D6?style=for-the-badge&logo=Amazon%20DynamoDB&logoColor=white
+
+https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white
+
+https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white
+
+https://img.shields.io/badge/Visual_Studio_Code-0078D4?style=for-the-badge&logo=visual%20studio%20code&logoColor=white
+
 ## Instalación
 
 Es recomendable utilizar un entorno virtual antes de instalar las dependencias. Puedes crear y activar un entorno virtual con los siguientes comandos:
