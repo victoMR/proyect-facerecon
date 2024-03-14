@@ -6,6 +6,7 @@ Descripción breve no se
 
 El proyecto requiere las siguientes dependencias. Se recomienda instalarlas en un entorno virtual para evitar conflictos con otros proyectos.
 
+- boto3==1.34.51
 - click==8.1.7
 - cmake==3.28.1
 - contourpy==1.2.0
@@ -19,8 +20,10 @@ El proyecto requiere las siguientes dependencias. Se recomienda instalarlas en u
 - numpy==1.26.3
 - opencv-python==4.9.0.80
 - packaging==23.2
+- paho-mqtt==1.6.1
 - pillow==10.2.0
 - ply==3.11
+- pymongo==4.6.2
 - Pyomo==6.7.1
 - pyparsing==3.1.1
 - python-dateutil==2.8.2

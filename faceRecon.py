@@ -1,136 +1,198 @@
 import face_recognition
 import cv2
 import dlib
-from tqdm import tqdm  # Importa la clase tqdm
+import serial
+import boto3
+import numpy as np
+from tqdm import tqdm
+import time
+import random
 
-# Cargar el modelo de puntos faciales
-predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+from paho.mqtt import client as mqtt_client
 
-# Abrir la cámara; ajusta el número según tu configuración
-cap = cv2.VideoCapture(0)
+broker = 'xee4876e.us-east-1.emqx.cloud'
+port = 15280
+topic = "alumnos/entradas"
+# generate client ID with pub prefix randomly
+client_id = f'python-mqtt-{random.randint(0, 1000)}'
+username = 'pi'
+password = '123'
+# se ponen los qos en 2 para que se envie exactamente 1 vez 
+# esto con el fin de que no se envie mas de una vez el mensaje
+qos = 2
 
-# Verificar si la cámara se abrió correctamente
-if not cap.isOpened():
-    print("Error")
-    exit()
+def run_face_recognition():
+    # Cargar el modelo de puntos faciales
+    predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
-# Lista para almacenar las imágenes y nombres para el reconocimiento facial
-images = []
-names = ["Desconocido","2022143009_Abril", "2022143069_Vic", "2022143063_Mau", "2022143015_Palo"]
-
-# Utiliza tqdm para mostrar una barra de progreso en la consola
-for i in tqdm(range(40), desc="Cargando datos"):
-    img_path = f"/home/pi/Documents/face_recon/img/img{i+1}.JPG"
-    img = face_recognition.load_image_file(img_path)
-
-    # Asignar nombres basados en el rango de imágenes
-    if i < 11:
-        name = names[1]
-    elif i < 21:
-        name = names[2]
-    elif i < 31:
-        name = names[3]
-    elif i < 41:
-        name = names[4]
-    else:
-        name = names[0]
-
-    # Intentar obtener codificaciones faciales; imprimir un mensaje si no se encuentra ninguna cara
+    # Configurar la conexión a DynamoDB
     try:
-        encoding = face_recognition.face_encodings(img)[0]
-    except IndexError:
-        print(f"No se detectó ninguna cara en la imagen {img_path}")
-        continue
+        dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+        list_tables = dynamodb.meta.client.list_tables()
+        print(f"Conexión exitosa con DynamoDB: {list_tables['TableNames']}")
+        if not list_tables['TableNames']:
+            print("No hay tablas en la base de datos")
+        else:
+            print(f"Tablas en la base de datos: {list_tables['TableNames']}")
+        table_name = 'faceReconMetadata'
+        table = dynamodb.Table(table_name)
+    except Exception as e:
+        print(f"Error al conectar con DynamoDB: {e}")
+        exit()
 
-    images.append((img, name))
+    # Obtener las codificaciones y nombres de las imágenes almacenadas en DynamoDB
+    encodings_by_name = {}
+    response = table.scan()
+    for item in response['Items']:
+        # Convertir la codificación facial a lista de numpy array y tipo float
+        encoding = np.array([float(coord) for coord in item['Codificacion']], dtype=float)
+        name = item['Nombre']
 
-# Lista para almacenar las codificaciones y nombres de las imágenes
-encodings_and_names = [(face_recognition.face_encodings(img)[0], name) for img, name in images]
-tqdm.write("Imágenes cargadas")
+        # Agrupar las codificaciones por nombre
+        if name not in encodings_by_name:
+            encodings_by_name[name] = []
+        encodings_by_name[name].append(encoding)
 
+    # Transformar a la lista de tuplas (nombre, lista de codificaciones)
+    encodings_and_names = [(name, encodings) for name, encodings in encodings_by_name.items()]
 
-frame_count = 1  # Contador para controlar la frecuencia de reconocimiento facial
-recognition_frequency = 6  # Ajusta este valor según tus necesidades
+    tqdm.write("Imágenes cargadas desde DynamoDB")
 
-# Variable para almacenar los nombres de las caras detectadas
-current_face_names = []
+    # Abrir la cámara; ajusta el número según tu configuración
+    cap = cv2.VideoCapture(0)
 
-# Definir face_locations fuera del bucle
-face_locations = []
+    # Verificar si la cámara se abrió correctamente
+    if not cap.isOpened():
+        print("Error al abrir la cámara")
+        exit()
 
-while True:
-    # Capturar fotograma por fotograma
-    ret, frame = cap.read()
+    tqdm.write("Imágenes cargadas")
 
-    # Si el fotograma no se captura correctamente o el final del flujo de video
-    if not ret:
-        print("Error capturando el fotograma o el final del flujo de video")
-        break
+    frame_count = 1
+    recognition_frequency = 6
 
-    # Convertir el fotograma de BGR a RGB
-    rgb_frame = frame[:, :, ::-1]
+    current_face_names = []
+    face_locations = []
+    detection_counter = {name: 0 for name, _ in encodings_and_names}
+    detection_threshold = 8 ## fotos que se tomaron para que se abra el torniquete
 
-    # Cambiar el tamaño del fotograma a un tamaño más pequeño
-    small_frame = cv2.resize(rgb_frame, (0, 0), fx=0.23, fy=0.23)
+    arduino_serial = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+    entered_students = set()
 
-    # Realizar el reconocimiento facial cada 'recognition_frequency' fotogramas
-    if frame_count % recognition_frequency == 0:
-        # Obtener las caras y sus codificaciones del fotograma actual
-        face_locations = face_recognition.face_locations(small_frame)
-        face_encodings = face_recognition.face_encodings(small_frame, face_locations)
+    # Configurar cliente MQTT
+    def connect_mqtt():
+        def on_connect(client, userdata, flags, rc):
+            if rc == 0:
+                print("Conectado al broker MQTT")
+            else:
+                print("Fallo al conectar al broker MQTT")
+        
+        client = mqtt_client.Client(client_id)
+        client.username_pw_set(username, password)
+        client.on_connect = on_connect
+        client.connect(broker, port)
+        return client
 
-        # Limpiar la lista de nombres de caras
-        current_face_names = []
+    def publish(client, name):
+        msg = f"{name} ingresó a las {time.strftime('%H:%M:%S')}"
+        result = client.publish(topic, msg, qos=qos)
+        status = result[0]
+        if status == 0:
+            print(f"Mensaje publicado exitosamente: {msg}")
+        else:
+            print(f"Fallo al publicar mensaje con estado: {status}")
 
-        # Realizar el reconocimiento facial para cada cara en el fotograma
-        for face_location, face_encoding in zip(face_locations, face_encodings):
-            # Obtener la caja delimitadora de la cara
-            top, right, bottom, left = face_location
-            face_box = dlib.rectangle(left, top, right, bottom)
+    client = connect_mqtt()
+    client.loop_start()
 
-            # Predecir los puntos faciales
-            landmarks = predictor(small_frame, face_box)
+    while True:
+        ret, frame = cap.read()
 
-            # Dibujar puntos faciales más finos
-            for n in range(68):
-                x = landmarks.part(n).x
-                y = landmarks.part(n).y
-                cv2.circle(frame, (x * 4, y * 4), 1, (0, 255, 0), -1)
+        if not ret:
+            print("Error capturando el fotograma o el final del flujo de video")
+            break
 
-            tolerance = 0.4  # Valor de tolerancia inicial es 0.5 , puedes ajustarlo según sea necesario
-            # Comparar la codificación de la cara actual con las codificaciones de las imágenes
-            matches = face_recognition.compare_faces([enc for enc, _ in encodings_and_names], face_encoding, tolerance=tolerance)
+        if frame_count % recognition_frequency == 0:
+            rgb_frame = frame[:, :, ::-1]
+            small_frame = cv2.resize(rgb_frame, (0, 0), fx=0.23, fy=0.23)
 
-            # Si no hay coincidencias
-            if not any(matches):
-                current_face_names.append("Desconocido")
-                continue
+            face_locations = face_recognition.face_locations(small_frame)
+            face_encodings = face_recognition.face_encodings(small_frame, face_locations)
 
-            # Si hay coincidencias
-            # Obtener el nombre de la persona usando enumerate para obtener el índice directamente
-            index = matches.index(True)
-            current_face_names.append(encodings_and_names[index][1])
+            current_face_names = []
 
-    # Mostrar los nombres de las caras detectadas
-    for (top, right, bottom, left), name in zip(face_locations, current_face_names):
-        # Dibujar un rectángulo alrededor de la cara
-        cv2.rectangle(frame, (left * 4, top * 4), (right * 4, bottom * 4), (0, 0, 255), 2)
+            for face_location, face_encoding in zip(face_locations, face_encodings):
+                top, right, bottom, left = face_location
+                face_box = dlib.rectangle(left, top, right, bottom)
 
-        # Dibujar una etiqueta con el nombre de la persona
-        cv2.rectangle(frame, (left * 4, (bottom * 4) - 35), (right * 4, bottom * 4), (0, 100, 255), cv2.FILLED)
-        cv2.putText(frame, name, (left * 4 + 6, (bottom * 4) - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 1)
+                landmarks = predictor(small_frame, face_box)
 
-    # Mostrar el fotograma
-    cv2.imshow('Camera', frame)
-    cv2.waitKey(1)  # Agregar una pequeña demora para permitir que la ventana se actualice
+                for n in range(68):
+                    x = landmarks.part(n).x
+                    y = landmarks.part(n).y
+                    cv2.circle(frame, (x * 4, y * 4), 1, (0, 255, 0), -1)
 
-    # Presiona 'q' para salir del programa
-    if cv2.waitKey(10) & 0xFF == ord('q'):
-        break
+                tolerance = 0.4
+                face_encoding = np.array(face_encoding, dtype=float)
 
-    # Incrementar el contador de fotogramas
-    frame_count += 1
+                match_found = False
+                for name, encodings in encodings_and_names:
+                    for known_encoding in encodings:
+                        match = face_recognition.compare_faces([known_encoding], face_encoding, tolerance=tolerance)
+                        if any(match):
+                            current_face_names.append(name)
+                            match_found = True
+                            break
+                    if match_found:
+                        break
 
-# Liberar la cámara y cerrar todas las ventanas
-cap.release()
-cv2.destroyAllWindows()
+                if not match_found:
+                    current_face_names.append("Desconocido")
+
+        for (top, right, bottom, left), name in zip(face_locations, current_face_names):
+            cv2.rectangle(frame, (left * 4, top * 4), (right * 4, bottom * 4), (0, 0, 255), 2)
+            cv2.rectangle(frame, (left * 4, (bottom * 4) - 35), (right * 4, bottom * 4), (0, 100, 255), cv2.FILLED)
+            cv2.putText(frame, name, (left * 4 + 6, (bottom * 4) - 6), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 1)
+
+            # Verificar si el nombre no es 'Desconocido' antes de incrementar el contador
+            if name != 'Desconocido':
+                # Verificar si la clave existe en el diccionario
+                if name in detection_counter:
+                    detection_counter[name] += 1
+                else:
+                    detection_counter[name] = 1
+
+                if detection_counter[name] >= detection_threshold:
+                    #time.sleep(0.5)
+                    print(f"Persona {name} detectada y servo activado!")
+                    
+                    publish(client, name)  # Publicar el nombre del estudiante y la hora de ingreso
+
+                    if name not in entered_students:
+                        #time.sleep(0.2)
+                        arduino_serial.write(b'M')  # Enviar comando para abrir el torniquete
+                        entered_students.add(name)
+                        ## impriomir el comando que le manda a la arduino
+                        print("M")
+
+                    else:
+                        #time.sleep(0.2)
+                        arduino_serial.write(b'R')  # Enviar comando para cerrar el torniquete
+                        entered_students.remove(name)
+                        print("R")  
+
+                    detection_counter[name] = 0
+
+        cv2.imshow('Camera', frame)
+        cv2.waitKey(1)
+
+        if cv2.waitKey(10) & 0xFF == ord('q'):
+            break
+
+        frame_count += 1
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == '__main__':
+    run_face_recognition()
