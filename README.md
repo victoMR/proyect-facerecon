@@ -37,7 +37,10 @@ El proyecto requiere las siguientes dependencias. Se recomienda instalarlas en u
 ## Actualizaccion 
 ![20240213_18h42m26s_grim](https://github.com/victoMR/proyect-facerecon/assets/77412296/ba3cc042-f153-4a3a-9b0a-ceef630c537e)
 
-## Usando 
+## Usando
+
+https://img.shields.io/badge/Amazon_AWS-232F3E?style=for-the-badge&logo=amazon-aws&logoColor=white
+
 https://img.shields.io/badge/Amazon%20DynamoDB-4053D6?style=for-the-badge&logo=Amazon%20DynamoDB&logoColor=white
 
 https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white
@@ -45,6 +48,8 @@ https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&log
 https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white
 
 https://img.shields.io/badge/Visual_Studio_Code-0078D4?style=for-the-badge&logo=visual%20studio%20code&logoColor=white
+
+https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black
 
 ## Instalación
 
