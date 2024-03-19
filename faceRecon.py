@@ -7,16 +7,21 @@ import numpy as np
 from tqdm import tqdm
 import time
 import random
-
+import os
+from dotenv import load_dotenv
 from paho.mqtt import client as mqtt_client
 
-broker = 'xee4876e.us-east-1.emqx.cloud'
-port = 15280
+load_dotenv()
+
+broker = 'g6d66eee.emqx.cloud'
+port = 1883
 topic = "alumnos/entradas"
 # generate client ID with pub prefix randomly
 client_id = f'python-mqtt-{random.randint(0, 1000)}'
-username = 'pi'
-password = '123'
+# USAR .ENV PARA LAS CREDENCIALES
+username =  os.getenv('USERNAME')
+password = os.getenv('PASSWORD')
+
 # se ponen los qos en 2 para que se envie exactamente 1 vez 
 # esto con el fin de que no se envie mas de una vez el mensaje
 qos = 2

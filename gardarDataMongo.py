@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import os
 from paho.mqtt import client as mqtt_client
 
-broker = 'xee4876e.us-east-1.emqx.cloud'
+broker = 'g6d66eee.emqx.cloud'
 port = 15280
 topic = "alumnos/entradas"
 client_id = f'python-mqtt-subscriber'
