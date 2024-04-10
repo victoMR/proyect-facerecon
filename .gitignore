@@ -10,12 +10,10 @@ connect_device_package.zip
 
 .lgd-nfy0
 
-esp8266.cert.pem
+emqxsl-ca.cert
 
-esp8266-Policy
+test1.py
 
-esp8266.private.key
+test2.py
 
-esp8266.public.key
-
-aws-iot-device-sdk-python-v2
+openCamara.py

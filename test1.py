@@ -1,61 +1,77 @@
-# python 3.8
+# python 3.x
 
+import logging
 import random
 import time
-import os
-from dotenv import load_dotenv
+
 from paho.mqtt import client as mqtt_client
 
-load_dotenv()
-
-broker = 'g6d66eee.emqx.cloud'
-port = 1883
-topic = "python/mqtt"
+BROKER = 'mf631bef.ala.us-east-1.emqxsl.com'
+PORT = 8883
+TOPIC = "python-mqtt/tls"
 # generate client ID with pub prefix randomly
-client_id = f'python-mqtt-{random.randint(0, 1000)}'
-# USAR .ENV PARA LAS CREDENCIALES
-username =  os.getenv('USERNAME')
-password = os.getenv('PASSWORD')
+CLIENT_ID = f'python-mqtt-tls-sub-{random.randint(0, 1000)}'
+USERNAME = 'pi2'
+PASSWORD = '1234'
 
-# se ponen los qos en 2 para que se envie exactamente 1 vez 
-# esto con el fin de que no se envie mas de una vez el mensaje
-qos = 2
+FIRST_RECONNECT_DELAY = 1
+RECONNECT_RATE = 2
+MAX_RECONNECT_COUNT = 12
+MAX_RECONNECT_DELAY = 60
+
+FLAG_EXIT = False
+
+
+def on_connect(client, userdata, flags, rc):
+    if rc == 0 and client.is_connected():
+        print("Connected to MQTT Broker!")
+        client.subscribe(TOPIC)
+    else:
+        print(f'Failed to connect, return code {rc}')
+
+
+def on_disconnect(client, userdata, rc):
+    logging.info("Disconnected with result code: %s", rc)
+    reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
+    while reconnect_count < MAX_RECONNECT_COUNT:
+        logging.info("Reconnecting in %d seconds...", reconnect_delay)
+        time.sleep(reconnect_delay)
+
+        try:
+            client.reconnect()
+            logging.info("Reconnected successfully!")
+            return
+        except Exception as err:
+            logging.error("%s. Reconnect failed. Retrying...", err)
+
+        reconnect_delay *= RECONNECT_RATE
+        reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
+        reconnect_count += 1
+    logging.info("Reconnect failed after %s attempts. Exiting...", reconnect_count)
+    global FLAG_EXIT
+    FLAG_EXIT = True
+
+
+def on_message(client, userdata, msg):
+    print(f'Received `{msg.payload.decode()}` from `{msg.topic}` topic')
 
 
 def connect_mqtt():
-    def on_connect(client, userdata, flags, rc):
-        if rc == 0:
-            print("Connected to MQTT Broker!")
-        else:
-            print("Failed to connect, return code %d\n", rc)
-
-    client = mqtt_client.Client(client_id)
-    # client.tls_set(ca_certs='./server-ca.crt')
-    client.username_pw_set(username, password)
+    client = mqtt_client.Client(CLIENT_ID)
+    client.tls_set(ca_certs='./emqxsl-ca.cert')
+    client.username_pw_set(USERNAME, PASSWORD)
     client.on_connect = on_connect
-    client.connect(broker, port)
+    client.on_message = on_message
+    client.connect(BROKER, PORT, keepalive=120)
+    client.on_disconnect = on_disconnect
     return client
 
 
-def publish(client):
-    msg_count = 0
-    while True:
-        time.sleep(1)
-        msg = f"messages: {msg_count}"
-        result = client.publish(topic, msg, qos)
-        # result: [0, 1]
-        status = result[0]
-        if status == 0:
-            print(f"Send `{msg}` to topic `{topic}`")
-        else:
-            print(f"Failed to send message to topic {topic}")
-        msg_count += 1
-
-
 def run():
+    logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s',
+                        level=logging.DEBUG)
     client = connect_mqtt()
-    client.loop_start()
-    publish(client)
+    client.loop_forever()
 
 
 if __name__ == '__main__':

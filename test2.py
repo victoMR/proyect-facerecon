@@ -7,19 +7,71 @@ import numpy as np
 from tqdm import tqdm
 import time
 import random
+import os
+import logging
 
 from paho.mqtt import client as mqtt_client
 
-broker = 'xee4876e.us-east-1.emqx.cloud'
-port = 15280
-topic = "alumnos/entradas"
-# generate client ID with pub prefix randomly
-client_id = f'python-mqtt-{random.randint(0, 1000)}'
-username = 'pi'
-password = '123'
-# se ponen los qos en 2 para que se envie exactamente 1 vez 
-# esto con el fin de que no se envie mas de una vez el mensaje
-qos = 2
+BROKER = 'mf631bef.ala.us-east-1.emqxsl.com'
+PORT = 8883
+TOPIC_BASE = "historial/alumno"  # Tema base para MQTT
+CLIENT_ID = f'python-mqtt-tls-sub-{random.randint(0, 1000)}'
+USERNAME = os.getenv('USERNAME')
+PASSWORD = os.getenv('PASSWORD')
+
+FIRST_RECONNECT_DELAY = 1
+RECONNECT_RATE = 2
+MAX_RECONNECT_COUNT = 12
+MAX_RECONNECT_DELAY = 60
+
+FLAG_EXIT = False
+
+def on_connect(client, userdata, flags, rc):
+    if rc == 0 and client.is_connected():
+        print("Connected to MQTT Broker!")
+    else:
+        print(f'Failed to connect, return code {rc}')
+
+def on_disconnect(client, userdata, rc):
+    logging.info("Disconnected with result code: %s", rc)
+    reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
+    while reconnect_count < MAX_RECONNECT_COUNT:
+        logging.info("Reconnecting in %d seconds...", reconnect_delay)
+        time.sleep(reconnect_delay)
+
+        try:
+            client.reconnect()
+            logging.info("Reconnected successfully!")
+            return
+        except Exception as err:
+            logging.error("%s. Reconnect failed. Retrying...", err)
+
+        reconnect_delay *= RECONNECT_RATE
+        reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
+        reconnect_count += 1
+    logging.info("Reconnect failed after %s attempts. Exiting...", reconnect_count)
+    global FLAG_EXIT
+    FLAG_EXIT = True
+
+def on_message(client, userdata, msg):
+    # Extraer el nombre del estudiante del mensaje recibido
+    topic_parts = msg.topic.split('/')
+    student_name_with_id = topic_parts[-1]  # Último elemento de la lista
+    student_name = student_name_with_id.split('_')[0]  # Obtener el nombre antes del guión bajo
+    # Construir el nuevo topic sin el identificador
+    new_topic = '/'.join(topic_parts[:-1]) + '/' + student_name
+    # Imprimir el nuevo topic y el mensaje recibido
+    print(f'Received `{msg.payload.decode()}` from `{new_topic}` topic')
+
+def connect_mqtt():
+    client = mqtt_client.Client(CLIENT_ID)
+    client.tls_set(ca_certs='./emqxsl-ca.cert')
+    client.username_pw_set(USERNAME, PASSWORD)
+    client.on_connect = on_connect
+    client.on_message = on_message
+    client.connect(BROKER, PORT, keepalive=120)
+    client.on_disconnect = on_disconnect
+    return client
 
 def run_face_recognition():
     # Cargar el modelo de puntos faciales
@@ -78,29 +130,6 @@ def run_face_recognition():
 
     arduino_serial = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
     entered_students = set()
-
-    # Configurar cliente MQTT
-    def connect_mqtt():
-        def on_connect(client, userdata, flags, rc):
-            if rc == 0:
-                print("Conectado al broker MQTT")
-            else:
-                print("Fallo al conectar al broker MQTT")
-        
-        client = mqtt_client.Client(client_id)
-        client.username_pw_set(username, password)
-        client.on_connect = on_connect
-        client.connect(broker, port)
-        return client
-
-    def publish(client, name):
-        msg = f"{name} ingresó a las {time.strftime('%H:%M:%S')}"
-        result = client.publish(topic, msg, qos=qos)
-        status = result[0]
-        if status == 0:
-            print(f"Mensaje publicado exitosamente: {msg}")
-        else:
-            print(f"Fallo al publicar mensaje con estado: {status}")
 
     client = connect_mqtt()
     client.loop_start()
@@ -166,13 +195,27 @@ def run_face_recognition():
                     #time.sleep(0.5)
                     print(f"Persona {name} detectada y servo activado!")
                     
-                    publish(client, name)  # Publicar el nombre del estudiante y la hora de ingreso
+                    # Construir el tema MQTT para el alumno
+                    #crear un nuevo nombre ya que este esta con _ este necesitamos que sean los puros numeros 
+                    nameWitdNo = name.split('_')[0]
+                    # quitamos el _ 
+                    nameWitdNo = nameWitdNo.replace("_", "")
+                    topic = f"{TOPIC_BASE}/{nameWitdNo}"
+
+                    # Publicar el nombre del estudiante y la hora de ingreso
+                    msg = f"{name} ingresó a las {time.strftime('%H:%M:%S')}"
+                    result = client.publish(topic, msg, qos=0)
+                    status = result[0]
+                    if status == 0:
+                        print(f"Mensaje publicado exitosamente: {msg}")
+                    else:
+                        print(f"Fallo al publicar mensaje con estado: {status}")
 
                     if name not in entered_students:
                         #time.sleep(0.2)
                         arduino_serial.write(b'M')  # Enviar comando para abrir el torniquete
                         entered_students.add(name)
-                        ## impriomir el comando que le manda a la arduino
+                        ## imprimir el comando que le manda a la arduino
                         print("M")
 
                     else:
