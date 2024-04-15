@@ -26,6 +26,8 @@ MAX_RECONNECT_DELAY = 60
 
 FLAG_EXIT = False
 
+ultimo_mensaje_tiempo = 0
+
 def on_connect(client, userdata, flags, rc):
     if rc == 0 and client.is_connected():
         print("Connected to MQTT Broker!")
@@ -54,6 +56,7 @@ def on_disconnect(client, userdata, rc):
     FLAG_EXIT = True
 
 def on_message(client, userdata, msg):
+    global ultimo_mensaje_tiempo
     # Extraer el nombre del estudiante del mensaje recibido
     topic_parts = msg.topic.split('/')
     student_name_with_id = topic_parts[-1]  # Último elemento de la lista
@@ -62,6 +65,15 @@ def on_message(client, userdata, msg):
     new_topic = '/'.join(topic_parts[:-1]) + '/' + student_name
     # Imprimir el nuevo topic y el mensaje recibido
     print(f'Received `{msg.payload.decode()}` from `{new_topic}` topic')
+    # Verificar si ha pasado menos de 1 segundo desde el último mensaje
+    tiempo_actual = time.time()
+    if tiempo_actual - ultimo_mensaje_tiempo >= 0.2:
+        # Actualizar el tiempo del último mensaje
+        ultimo_mensaje_tiempo = tiempo_actual
+        # Procesar el mensaje recibido
+    else:
+        print('Mensaje duplicado. Ignorando...')
+        
 
 def connect_mqtt():
     client = mqtt_client.Client(CLIENT_ID)
@@ -72,6 +84,7 @@ def connect_mqtt():
     client.connect(BROKER, PORT, keepalive=120)
     client.on_disconnect = on_disconnect
     return client
+
 
 def run_face_recognition():
     # Cargar el modelo de puntos faciales
