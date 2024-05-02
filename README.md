@@ -1,6 +1,6 @@
 # FaceReconIa con RapberryPI5
 
-Descripción breve no se 
+Ingreso y egreso de estudiantes de la universidad mediante reconocimiento facial rápido y escalable 
 
 ## Requisitos
 
